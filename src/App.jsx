@@ -1,30 +1,12 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import "./App.css";
 import actorImg from "./assets/actor.png";
-import { uml, uml2 } from "./umlTest";
 import * as go from "gojs";
-
-const parser = new DOMParser();
-const xmlDoc = parser.parseFromString(uml, "text/xml");
-
-const rootElement = xmlDoc.documentElement;
+import { UMLFileReader } from "./UmlFileReader";
 
 const $ = go.GraphObject.make;
-
-// const linkTypes = ["Association", "Include", "Extend"];
-// const isLink = (node) => {
-//   const [uml, type] = node.attributes["xmi:type"].split(":");
-//   return linkTypes.includes(type);
-// };
 
 const interfaceCreator = {
   Package: (diagram, text, key, parent) => {
@@ -95,6 +77,9 @@ const UmlContructor = ({ node, parent }) => {
   useEffect(() => {
     if (!diagram) return;
 
+    let nodeData = null;
+    let linkData = null;
+
     if (node.node === "packagedElement") {
       const type = node.attributes["xmi:type"].split(":");
       const category = type[type.length - 1];
@@ -111,6 +96,10 @@ const UmlContructor = ({ node, parent }) => {
 
         interfaceCreator[category] &&
           interfaceCreator[category](diagram, ends[1], ends[0], label);
+
+        linkData = diagram.model.linkDataArray.find(function (link) {
+          return link.from === ends[1] && link.to === ends[0];
+        });
       } else {
         interfaceCreator[category] &&
           interfaceCreator[category](
@@ -119,6 +108,8 @@ const UmlContructor = ({ node, parent }) => {
             node.attributes["xmi:id"],
             parent.attributes["xmi:id"]
           );
+
+        nodeData = diagram.model.findNodeDataForKey(node.attributes["xmi:id"]);
       }
     } else if (node.node === "include") {
       const type = node.attributes["xmi:type"].split(":");
@@ -127,6 +118,10 @@ const UmlContructor = ({ node, parent }) => {
       const to = node.attributes["addition"];
       interfaceCreator[category] &&
         interfaceCreator[category](diagram, from, to);
+
+      linkData = diagram.model.linkDataArray.find(function (link) {
+        return link.from === from && link.to === to;
+      });
     } else if (node.node === "extend") {
       const type = node.attributes["xmi:type"].split(":");
       const category = type[type.length - 1];
@@ -135,7 +130,25 @@ const UmlContructor = ({ node, parent }) => {
 
       interfaceCreator[category] &&
         interfaceCreator[category](diagram, from, to);
+
+      linkData = diagram.model.linkDataArray.find(function (link) {
+        return link.from === from && link.to === to;
+      });
     }
+
+    return () => {
+      if (nodeData) {
+        console.log(nodeData);
+        diagram.model.removeNodeData(nodeData);
+        diagram.updateAllTargetBindings();
+      }
+
+      if (linkData) {
+        console.log(linkData);
+        diagram.model.removeLinkData(linkData);
+        diagram.updateAllTargetBindings();
+      }
+    };
   }, [diagram, node]);
 
   return (
@@ -289,57 +302,14 @@ const UMLDiagramContext = ({ children, ...props }) => {
 
 const useDiagram = () => useContext(UMLDiagramCtx);
 
-const FindByIdCtx = createContext(null);
-
-const FindByIdContext = ({ children, value }) => {
-  const findNodeById = useCallback((id) => value[id], [value]);
-
-  return (
-    <FindByIdCtx.Provider value={findNodeById}>{children}</FindByIdCtx.Provider>
-  );
-};
-
-const useFindNodeById = () => useContext(FindByIdCtx);
-
 function App() {
-  const tree = {};
-
-  function traverseNode(node, parent) {
-    const nodeJson = {
-      node: undefined,
-      attributes: {},
-      children: [],
-    };
-    if (node.nodeType === 1) {
-      nodeJson.node = node.nodeName;
-      if (node.attributes.length > 0) {
-        for (let i = 0; i < node.attributes.length; i++) {
-          const attribute = node.attributes[i];
-          nodeJson.attributes[attribute.nodeName] = attribute.nodeValue;
-        }
-      }
-      tree[nodeJson.attributes["xmi:id"]] = nodeJson;
-      if (parent) {
-        parent.children.push(nodeJson);
-      }
-      const children = node.childNodes;
-      for (let i = 0; i < children.length; i++) {
-        traverseNode(children[i], nodeJson);
-      }
-
-      return nodeJson;
-    }
-  }
-
-  const umlJson = traverseNode(rootElement);
-
+  const [uml, setUMLText] = useState();
   return (
     <>
-      <FindByIdContext value={tree}>
-        <UMLDiagramContext>
-          <UmlContructor node={umlJson} />
-        </UMLDiagramContext>
-      </FindByIdContext>
+      <UMLFileReader setUMLText={setUMLText} />
+      <UMLDiagramContext>
+        {uml && <UmlContructor key={uml.attributes["xmi:id"]} node={uml} />}
+      </UMLDiagramContext>
     </>
   );
 }
