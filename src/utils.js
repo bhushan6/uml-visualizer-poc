@@ -62,3 +62,17 @@ export const interfaceCreator = {
     });
   },
 };
+
+export const templateCreator = (diagram, templatesMap) => {
+  Object.entries(templatesMap).forEach(([goDataType, templates]) => {
+    Object.entries(templates).forEach(([type, template]) => {
+      if (goDataType === "Nodes") {
+        diagram.nodeTemplateMap.add(type, template);
+      } else if (goDataType === "Links") {
+        diagram.linkTemplateMap.add(type, template);
+      } else if (goDataType === "Groups") {
+        diagram.groupTemplateMap.add(type, template);
+      }
+    });
+  });
+};
