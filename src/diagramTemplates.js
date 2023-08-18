@@ -1,6 +1,29 @@
+/* eslint-disable no-unused-vars */
 import * as go from "gojs";
 
 const $ = go.GraphObject.make;
+
+function highlightGroup(e, grp, show) {
+  if (!grp) return;
+  e.handled = true;
+  if (show) {
+    var tool = grp.diagram.toolManager.draggingTool;
+    var map = tool.draggedParts || tool.copiedParts;
+    if (grp.canAddMembers(map.toKeySet())) {
+      grp.isHighlighted = true;
+      return;
+    }
+  }
+  grp.isHighlighted = false;
+}
+
+function finishDrop(e, grp) {
+  var ok =
+    grp !== null
+      ? grp.addMembers(grp.diagram.selection, true)
+      : e.diagram.commandHandler.addTopLevelParts(e.diagram.selection, true);
+  if (!ok) e.diagram.currentTool.doCancel();
+}
 
 const actorTemplate = $(
   go.Node,
@@ -60,31 +83,53 @@ const includeLink = $(
   )
 );
 
+const inLink = new go.Link("Auto", {})
+  .add(
+    new go.Shape("RoundedRectangle", {
+      stroke: "black",
+      strokeDashArray: [4, 2],
+    })
+  )
+  .add(
+    new go.TextBlock("Default Text", {
+      segmentFraction: 0.5,
+      font: "10pt Arial, sans-serif",
+      stroke: "black",
+      margin: new go.Margin(3, 0, 0, 0),
+      background: "white",
+    }).bind("text", "label")
+  )
+  .add(new go.Shape("RoundedRectangle", { toArrow: "Standard" }));
+
 const packageTemplate = $(
   go.Group,
   "Vertical",
+  {
+    computesBoundsAfterDrag: true,
+    computesBoundsIncludingLocation: true,
+    handlesDragDropForMembers: true,
+    mouseDragEnter: (e, grp) => highlightGroup(e, grp, true),
+    mouseDragLeave: (e, grp) => highlightGroup(e, grp, false),
+    mouseDrop: finishDrop,
+  },
   $(
-    go.TextBlock, // group title
+    go.TextBlock,
     { alignment: go.Spot.Left, font: "Bold 12pt Sans-Serif", margin: 5 },
     new go.Binding("text", "text")
   ),
   $(
     go.Panel,
     "Auto",
-    $(
-      go.Shape,
-      "Rectangle", // surrounds the Placeholder
-      { parameter1: 14, fill: "rgba(128,128,128,0.33)" }
-    ),
-    $(
-      go.Placeholder, // represents the area of all member parts,
-      { padding: 20 }
-    ) // with some extra padding around them
+    $(go.Shape, "Rectangle", {
+      parameter1: 14,
+      fill: "rgba(128,128,128,0.33)",
+    }),
+    $(go.Placeholder, { padding: 20 })
   )
 );
 
 export const templates = {
   Nodes: { Actor: actorTemplate, UseCase: useCaseTemplate },
-  Links: { Association: associationLink, Include: includeLink },
+  Links: { Association: associationLink, Include: inLink },
   Groups: { Package: packageTemplate },
 };

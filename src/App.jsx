@@ -3,17 +3,21 @@
 import { useState } from "react";
 import "./App.css";
 import { UMLFileReader } from "./UmlFileReader";
-import { UMLDiagramContext } from "./UMLContext";
+import { UMLDiagramContext, UMLDocContext } from "./UMLContext";
 import { UMLNode } from "./UMLNode";
+import { GenerateXML } from "./GenerateXML";
 
 function App() {
   const [uml, setUMLText] = useState();
   return (
     <>
-      <UMLFileReader setUMLText={setUMLText} />
-      <UMLDiagramContext>
-        {uml && <UMLNode key={uml.attributes["xmi:id"]} node={uml} />}
-      </UMLDiagramContext>
+      <UMLDocContext>
+        <UMLFileReader setUMLText={setUMLText} />
+        <UMLDiagramContext umlDoc={uml}>
+          <GenerateXML />
+          {uml && <UMLNode key={uml.attributes["xmi:id"]} node={uml} />}
+        </UMLDiagramContext>
+      </UMLDocContext>
     </>
   );
 }

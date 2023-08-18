@@ -1,9 +1,12 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
 
+import { useUmlDoc } from "./UMLContext";
 import { parser, traverseNode } from "./utils";
 
 export const UMLFileReader = ({ setUMLText }) => {
+  const [umlDoc, setUmlDoc] = useUmlDoc();
+
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -15,12 +18,12 @@ export const UMLFileReader = ({ setUMLText }) => {
           content.indexOf("\n") + 1
         );
 
-        const xmlDoc = parser.parseFromString(
+        const umlDoc = parser.parseFromString(
           contentWithoutFirstLine,
           "text/xml"
         );
-
-        const rootElement = xmlDoc.documentElement;
+        setUmlDoc(umlDoc);
+        const rootElement = umlDoc.documentElement;
         const umlJson = traverseNode(rootElement);
         setUMLText(umlJson);
         event.target.value = null;
